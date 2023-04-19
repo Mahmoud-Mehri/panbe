@@ -1,12 +1,14 @@
 package blockchain
 
 import (
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"panbe/utils"
+	"panbe/wallet"
 	"strings"
 	"time"
-	// "panbe/blockchain/blockchain"
 )
 
 const (
@@ -95,11 +97,29 @@ func (bc *Blockchain) Print() {
 	fmt.Printf("%s\n", strings.Repeat("*", 50))
 }
 
-func (bc *Blockchain) AddTransaction(sender, recipient string, value float32) *Transaction {
-	t := NewTransaction(sender, recipient, value)
-	bc.transactionPool = append(bc.transactionPool, t)
-	return t
+func (bc *Blockchain) AddTransaction(tInfo *wallet.TransactionInfo, signature *utils.Signature) bool {
+	if tInfo.SenderAddress == BLOCKCHAIN_ADDRESS {
+		t := NewTransaction(tInfo.SenderAddress, tInfo.RecipientAddress, tInfo.Value)
+		bc.transactionPool = append(bc.transactionPool, t)
+		return true
+	}
+
+	if bc.VerifyTranSignature(tInfo, signature) {
+		t := NewTransaction(tInfo.SenderAddress, tInfo.RecipientAddress, tInfo.Value)
+		bc.transactionPool = append(bc.transactionPool, t)
+		return true
+	}
+
+	fmt.Println("Error: Transaction didn`t verify!")
+	return false
 }
+
+func (bc *Blockchain) VerifyTranSignature(tInfo *wallet.TransactionInfo,
+	signature *utils.Signature) bool {
+	data, _ := tInfo.ToJSON()
+	h := sha256.Sum256(data)
+	return ecdsa.Verify(tInfo.SenderPublicKey, h[:], signature.R, signature.S)
+} 
 
 func (bc *Blockchain) CopyTransactionPool() []*Transaction {
 	tranPool := make([]*Transaction, 0);
@@ -127,10 +147,9 @@ func (bc *Blockchain) ProofOfWork() int {
 }
 
 func (bc *Blockchain) Mine(minerAddress string) {
-	bc.AddTransaction(BLOCKCHAIN_ADDRESS, minerAddress, MINING_REWARD)
+	bc.AddTransaction(&wallet.TransactionInfo{nil, nil, BLOCKCHAIN_ADDRESS, minerAddress, MINING_REWARD}, nil)
 	nonce := bc.ProofOfWork()
 	bc.CreateBlock(nonce)
-
 }
 
 func (bc *Blockchain) CalculateAccountBalance(accountAddress string) float32 {
