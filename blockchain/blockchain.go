@@ -69,12 +69,14 @@ func (b *Block) Print() {
 type Blockchain struct {
 	transactionPool []*Transaction
 	chain           []*Block
+	address         string
 }
 
-func NewBlockChain() *Blockchain {
+func NewBlockChain(address string) *Blockchain {
 	b := &Block{}
 	bc := new(Blockchain)
-	bc.chain = append(bc.chain, b);
+	bc.chain = append(bc.chain, b)
+	bc.address = address
 	return bc
 }
 
